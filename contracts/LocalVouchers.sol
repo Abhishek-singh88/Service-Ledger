@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -9,12 +9,12 @@ contract LocalVouchers is ERC1155, Ownable {
     struct Business {
         bool registered;
         address owner;
-        string metadataURI; // name, city, logo, etc.
+        string metadataURI; // e.g. IPFS or HTTP JSON with business profile
     }
 
     struct VoucherInfo {
         address business;
-        uint256 price;      // price per 1 unit in paymentToken (e.g. 1e6 = 1 USDC with 6 decimals)
+        uint256 price;      // price per 1 unit in paymentToken (e.g. 1e18 = 1 SLR if 18 decimals)
         uint256 expiry;     // unix timestamp, 0 = no expiry
         bool active;
     }
@@ -30,6 +30,7 @@ contract LocalVouchers is ERC1155, Ownable {
     mapping(uint256 => string) private _tokenURIs;
 
     event BusinessRegistered(address indexed business, string metadataURI);
+    event BusinessMetadataUpdated(address indexed business, string metadataURI);
     event VoucherCreated(
         uint256 indexed tokenId,
         address indexed business,
@@ -96,6 +97,8 @@ contract LocalVouchers is ERC1155, Ownable {
         Business storage b = businesses[msg.sender];
         require(b.registered, "Not registered");
         b.metadataURI = metadataURI;
+
+        emit BusinessMetadataUpdated(msg.sender, metadataURI);
     }
 
     function createVoucher(
@@ -115,6 +118,7 @@ contract LocalVouchers is ERC1155, Ownable {
             active: true
         });
 
+        // store full IPFS/HTTP URI from Pinata
         _tokenURIs[tokenId] = uri_;
 
         emit VoucherCreated(tokenId, msg.sender, price, expiry, uri_);
@@ -162,7 +166,6 @@ contract LocalVouchers is ERC1155, Ownable {
         require(amount > 0, "Amount = 0");
         VoucherInfo memory v = vouchers[tokenId];
         require(v.business != address(0), "Voucher not found");
-        // expiry is checked at business discretion; you can also enforce here
         if (v.expiry != 0) {
             require(block.timestamp < v.expiry, "Voucher expired");
         }
