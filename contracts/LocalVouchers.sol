@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.28;
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -9,19 +9,19 @@ contract LocalVouchers is ERC1155, Ownable {
     struct Business {
         bool registered;
         address owner;
-        string metadataURI; // e.g. IPFS or HTTP JSON with business profile
+        string metadataURI;
     }
 
     struct VoucherInfo {
         address business;
-        uint256 price;      // price per 1 unit in paymentToken (e.g. 1e18 = 1 SLR if 18 decimals)
-        uint256 expiry;     // unix timestamp, 0 = no expiry
+        uint256 price;
+        uint256 expiry;
         bool active;
     }
 
     IERC20 public immutable paymentToken;
     address public feeRecipient;
-    uint256 public feeBps; // e.g. 200 = 2%
+    uint256 public feeBps;
 
     mapping(address => Business) public businesses;
     mapping(uint256 => VoucherInfo) public vouchers;
@@ -29,6 +29,7 @@ contract LocalVouchers is ERC1155, Ownable {
     uint256 public nextVoucherId;
     mapping(uint256 => string) private _tokenURIs;
 
+    // Events
     event BusinessRegistered(address indexed business, string metadataURI);
     event BusinessMetadataUpdated(address indexed business, string metadataURI);
     event VoucherCreated(
@@ -57,10 +58,10 @@ contract LocalVouchers is ERC1155, Ownable {
         address _feeRecipient,
         uint256 _feeBps,
         string memory _baseURI
-    ) ERC1155(_baseURI) {
+    ) ERC1155(_baseURI) Ownable(msg.sender) {
         require(_paymentToken != address(0), "Invalid payment token");
         require(_feeRecipient != address(0), "Invalid fee recipient");
-        require(_feeBps <= 1_000, "Fee too high"); // max 10%
+        require(_feeBps <= 1_000, "Fee too high");
 
         paymentToken = IERC20(_paymentToken);
         feeRecipient = _feeRecipient;
@@ -118,7 +119,6 @@ contract LocalVouchers is ERC1155, Ownable {
             active: true
         });
 
-        // store full IPFS/HTTP URI from Pinata
         _tokenURIs[tokenId] = uri_;
 
         emit VoucherCreated(tokenId, msg.sender, price, expiry, uri_);
@@ -132,7 +132,7 @@ contract LocalVouchers is ERC1155, Ownable {
         v.active = active;
     }
 
-    // --- Buying & redeeming ---
+    // --- Buying & Redeeming ---
 
     function buyVoucher(uint256 tokenId, uint256 amount) external {
         require(amount > 0, "Amount = 0");
