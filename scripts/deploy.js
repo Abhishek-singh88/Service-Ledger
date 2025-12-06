@@ -11,7 +11,6 @@ async function main() {
   console.log("paymentToken:", PAYMENT_TOKEN);
   console.log("feeRecipient:", FEE_RECIPIENT);
   console.log("feeBps:", FEE_BPS);
-  console.log("baseURI:", BASE_URI);
 
   const LocalVouchers = await hre.ethers.getContractFactory("LocalVouchers");
   const localVouchers = await LocalVouchers.deploy(
@@ -21,9 +20,9 @@ async function main() {
     BASE_URI
   );
 
-  await localVouchers.deployed();
+  await localVouchers.waitForDeployment();
 
-  console.log("LocalVouchers deployed to:", localVouchers.address);
+  console.log("LocalVouchers deployed to:", await localVouchers.getAddress());
 }
 
 main()
@@ -32,3 +31,6 @@ main()
     console.error(error);
     process.exit(1);
   });
+
+
+  // Contract Address: 0x3de371b87d6EfbB0842Ed7346EdD6cfe41b4b6bF
