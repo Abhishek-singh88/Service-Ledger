@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import pinataSDK from '@pinata/sdk';
+import PinataClient from '@pinata/sdk';
 
-const pinata = pinataSDK(
-  process.env.PINATA_API_KEY!,
-  process.env.PINATA_API_SECRET!
-);
+const pinata = new PinataClient({
+  pinataApiKey: process.env.PINATA_API_KEY!,
+  pinataSecretApiKey: process.env.PINATA_API_SECRET!
+});
 
 export async function POST(req: NextRequest) {
   try {
