@@ -1,45 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import PinataClient from '@pinata/sdk';
+import pinataSDK from '@pinata/sdk';
 
-const pinata = new PinataClient({
-  pinataApiKey: process.env.PINATA_API_KEY!,
-  pinataSecretApiKey: process.env.PINATA_API_SECRET!
-});
+const pinata = new pinataSDK(
+  process.env.PINATA_API_KEY!,
+  process.env.PINATA_API_SECRET!
+);
 
 export async function POST(req: NextRequest) {
+  const { businessName, title, description, imageUrl, city, units, expiry } = await req.json();
+
+  const metadata = {
+    name: `${title} - ${businessName}`,
+    description,
+    image: imageUrl,
+    attributes: [
+      { trait_type: 'Business', value: businessName },
+      { trait_type: 'City', value: city },
+      { trait_type: 'Units', value: String(units) },
+      { trait_type: 'Expiry', value: expiry }
+    ]
+  };
+
   try {
-    const body = await req.json();
-    const {
-      businessName,
-      title,
-      description,
-      imageUrl,
-      city,
-      units,
-      expiry
-    } = body;
-
-    const metadata = {
-      name: `${title} - ${businessName}`,
-      description,
-      image: imageUrl,
-      attributes: [
-        { trait_type: 'Business', value: businessName },
-        { trait_type: 'City', value: city },
-        { trait_type: 'Units', value: String(units) },
-        { trait_type: 'Expiry', value: expiry }
-      ]
-    };
-
     const result = await pinata.pinJSONToIPFS(metadata);
-    const uri = `ipfs://${result.IpfsHash}`;
-
-    return NextResponse.json({ uri }, { status: 200 });
+    return NextResponse.json({ uri: `ipfs://${result.IpfsHash}` });
   } catch (e) {
     console.error(e);
-    return NextResponse.json(
-      { error: 'Pinata upload failed' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
   }
 }
