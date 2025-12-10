@@ -1,7 +1,7 @@
 "use client";
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { useReadContract, useWriteContract, useAccount } from 'wagmi';
-import { CONTRACTS } from '../../lib/contracts';
+import { useReadContract, useWriteContract, useAccount, useWaitForTransactionReceipt } from 'wagmi';
+import { CONTRACTS } from '../..//lib/contracts';
 import { useState } from 'react';
 import { parseUnits } from 'viem';
 
@@ -24,17 +24,28 @@ export default function BusinessDashboard() {
     expiry: '0'
   });
 
-  const { writeContract: writeContractFn } = useWriteContract();
+  const { writeContract: writeContractFn, data: hash, isPending } = useWriteContract();
+
+  // Wait for transaction confirmation
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    hash,
+  });
 
   // Check if registered
-  const { data: business } = useReadContract({
+  const { data: business, refetch } = useReadContract({
     ...CONTRACTS.localVouchers,
     functionName: 'businesses',
     args: address ? [address] : undefined
   });
 
-  const businessData = business as Business | undefined;
-  const isRegistered = businessData?.registered || false;
+  const businessData = business as [boolean, string, string] | undefined;
+const isRegistered = businessData ? businessData[0] : false;
+
+
+  console.log('Business data:', businessData);
+console.log('Is registered:', isRegistered);
+console.log('Address:', address);
+
 
   // Register
   const handleRegister = () => {
@@ -45,10 +56,14 @@ export default function BusinessDashboard() {
     });
   };
 
+  // Refetch when transaction is confirmed
+  if (isConfirmed && !isRegistered) {
+    setTimeout(() => refetch(), 2000);
+  }
+
   // Create voucher
   const handleCreateVoucher = async () => {
     try {
-      // 1. Upload to Pinata
       const res = await fetch('/api/uploadVoucherMetadata', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -56,8 +71,7 @@ export default function BusinessDashboard() {
       });
       const { uri } = await res.json();
 
-      // 2. Call createVoucher
-      const price = parseUnits(formData.price, 18); // adjust decimals if needed
+      const price = parseUnits(formData.price, 18);
       const expiry = BigInt(formData.expiry);
 
       writeContractFn({
@@ -78,12 +92,21 @@ export default function BusinessDashboard() {
       <h1>Business Dashboard</h1>
       <ConnectButton />
 
+      {/* Transaction status */}
+      {isPending && <p style={{ color: 'orange' }}>⏳ Waiting for wallet confirmation...</p>}
+      {isConfirming && <p style={{ color: 'blue' }}>⏳ Transaction confirming on blockchain...</p>}
+      {isConfirmed && <p style={{ color: 'green' }}>✅ Transaction confirmed!</p>}
+
       {!isRegistered ? (
         <div style={{ marginTop: '2rem' }}>
           <h2>Register Your Business</h2>
           <p>You need to register before creating vouchers.</p>
-          <button onClick={handleRegister} style={{ padding: '0.5rem 1rem' }}>
-            Register Business
+          <button 
+            onClick={handleRegister} 
+            style={{ padding: '0.5rem 1rem' }}
+            disabled={isPending || isConfirming}
+          >
+            {isPending || isConfirming ? 'Registering...' : 'Register Business'}
           </button>
         </div>
       ) : (
@@ -141,8 +164,12 @@ export default function BusinessDashboard() {
               onChange={e => setFormData({...formData, expiry: e.target.value})}
               style={{ padding: '0.5rem' }}
             />
-            <button onClick={handleCreateVoucher} style={{ padding: '0.5rem 1rem', marginTop: '1rem' }}>
-              Create Voucher
+            <button 
+              onClick={handleCreateVoucher} 
+              style={{ padding: '0.5rem 1rem', marginTop: '1rem' }}
+              disabled={isPending || isConfirming}
+            >
+              {isPending || isConfirming ? 'Creating...' : 'Create Voucher'}
             </button>
           </div>
         </div>
