@@ -37,6 +37,7 @@ contract LocalVouchers is ERC1155, Ownable {
         address indexed business,
         uint256 price,
         uint256 expiry,
+        uint256 initialSupply,
         string uri
     );
     event VoucherPurchased(
@@ -102,14 +103,17 @@ contract LocalVouchers is ERC1155, Ownable {
         emit BusinessMetadataUpdated(msg.sender, metadataURI);
     }
 
+    // Create voucher with initial supply minted to business
     function createVoucher(
         uint256 price,
         uint256 expiry,
+        uint256 initialSupply,
         string calldata uri_
     ) external returns (uint256 tokenId) {
         Business storage b = businesses[msg.sender];
         require(b.registered, "Not a business");
         require(price > 0, "Price must be > 0");
+        require(initialSupply > 0, "Supply must be > 0");
 
         tokenId = nextVoucherId++;
         vouchers[tokenId] = VoucherInfo({
@@ -120,8 +124,11 @@ contract LocalVouchers is ERC1155, Ownable {
         });
 
         _tokenURIs[tokenId] = uri_;
+        
+        // Mint initial supply to business owner
+        _mint(msg.sender, tokenId, initialSupply, "");
 
-        emit VoucherCreated(tokenId, msg.sender, price, expiry, uri_);
+        emit VoucherCreated(tokenId, msg.sender, price, expiry, initialSupply, uri_);
     }
 
     function setVoucherActive(uint256 tokenId, bool active) external {
@@ -134,6 +141,7 @@ contract LocalVouchers is ERC1155, Ownable {
 
     // --- Buying & Redeeming ---
 
+    // Transfer from business instead of minting
     function buyVoucher(uint256 tokenId, uint256 amount) external {
         require(amount > 0, "Amount = 0");
 
@@ -143,6 +151,9 @@ contract LocalVouchers is ERC1155, Ownable {
         if (v.expiry != 0) {
             require(block.timestamp < v.expiry, "Voucher expired");
         }
+
+        // Check business has enough vouchers in their balance
+        require(balanceOf(v.business, tokenId) >= amount, "Insufficient supply");
 
         uint256 total = v.price * amount;
         uint256 fee = (total * feeBps) / 10_000;
@@ -157,7 +168,8 @@ contract LocalVouchers is ERC1155, Ownable {
             "Business transfer failed"
         );
 
-        _mint(msg.sender, tokenId, amount, "");
+        // Transfer vouchers from business to buyer
+        _safeTransferFrom(v.business, msg.sender, tokenId, amount, "");
 
         emit VoucherPurchased(tokenId, msg.sender, amount, total, fee);
     }
@@ -173,6 +185,15 @@ contract LocalVouchers is ERC1155, Ownable {
         _burn(msg.sender, tokenId, amount);
 
         emit VoucherRedeemed(tokenId, msg.sender, amount);
+    }
+
+    // --- Helper view functions ---
+
+    // Get remaining supply for a voucher (business's balance)
+    function getRemainingSupply(uint256 tokenId) external view returns (uint256) {
+        VoucherInfo memory v = vouchers[tokenId];
+        require(v.business != address(0), "Voucher not found");
+        return balanceOf(v.business, tokenId);
     }
 
     // --- ERC1155 URI override ---
