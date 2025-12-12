@@ -19,15 +19,20 @@ const queryClient = new QueryClient();
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>
+      <head>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>LocalVouchers - Blockchain-Based Local Business Vouchers</title>
+      </head>
+      <body style={{ 
+        margin: 0, 
+        padding: 0, 
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        background: '#f5f5f5'
+      }}>
         <WagmiProvider config={config}>
           <QueryClientProvider client={queryClient}>
             <RainbowKitProvider>
-              <nav style={{ padding: '1rem', background: '#f0f0f0' }}>
-                <a href="/" style={{ margin: '0 1rem' }}>Marketplace</a>
-                <a href="/business/dashboard" style={{ margin: '0 1rem' }}>Business Dashboard</a>
-                <a href="/my-vouchers" style={{ margin: '0 1rem' }}>My Vouchers</a>
-              </nav>
               {children}
             </RainbowKitProvider>
           </QueryClientProvider>
