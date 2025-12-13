@@ -1,5 +1,5 @@
 "use client";
-import { useReadContract, useWriteContract, useAccount, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { CONTRACTS } from '../lib/contracts';
 import { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
@@ -16,6 +16,7 @@ export default function MyVouchers() {
   const [ownedVouchers, setOwnedVouchers] = useState<OwnedVoucher[]>([]);
   const [selectedVoucher, setSelectedVoucher] = useState<number | null>(null);
   const [redeemAmount, setRedeemAmount] = useState('1');
+  const [loading, setLoading] = useState(false);
 
   const { writeContract: writeContractFn, isPending, data: txHash } = useWriteContract();
   
@@ -23,99 +24,14 @@ export default function MyVouchers() {
     hash: txHash,
   });
 
-  // Read balances for voucher IDs 1, 2, 3
-  const { data: balance1, refetch: refetchBalance1 } = useReadContract({
-    ...CONTRACTS.localVouchers,
-    functionName: 'balanceOf',
-    args: address ? [address, BigInt(1)] : undefined
-  }) as { data: bigint | undefined, refetch: any };
-
-  const { data: uri1 } = useReadContract({
-    ...CONTRACTS.localVouchers,
-    functionName: 'uri',
-    args: [BigInt(1)]
-  });
-
-  const { data: balance2, refetch: refetchBalance2 } = useReadContract({
-    ...CONTRACTS.localVouchers,
-    functionName: 'balanceOf',
-    args: address ? [address, BigInt(2)] : undefined
-  }) as { data: bigint | undefined, refetch: any };
-
-  const { data: uri2 } = useReadContract({
-    ...CONTRACTS.localVouchers,
-    functionName: 'uri',
-    args: [BigInt(2)]
-  });
-
-  const { data: balance3, refetch: refetchBalance3 } = useReadContract({
-    ...CONTRACTS.localVouchers,
-    functionName: 'balanceOf',
-    args: address ? [address, BigInt(3)] : undefined
-  }) as { data: bigint | undefined, refetch: any };
-
-  const { data: uri3 } = useReadContract({
-    ...CONTRACTS.localVouchers,
-    functionName: 'uri',
-    args: [BigInt(3)]
-  });
-
-  // Refetch balances after successful transaction
+  // Refetch after successful transaction
   useEffect(() => {
     if (txSuccess) {
-      refetchBalance1();
-      refetchBalance2();
-      refetchBalance3();
+      loadOwnedVouchers();
       setSelectedVoucher(null);
       setRedeemAmount('1');
     }
   }, [txSuccess]);
-
-  // Load owned vouchers
-  useEffect(() => {
-    const loadOwnedVouchers = async () => {
-      const vouchers: OwnedVoucher[] = [];
-
-      // Voucher 1
-      if (balance1 && balance1 > BigInt(0) && uri1) {
-        const metadata = await fetchMetadata(uri1 as string);
-        vouchers.push({
-          id: 1,
-          balance: balance1,
-          uri: uri1 as string,
-          metadata
-        });
-      }
-
-      // Voucher 2
-      if (balance2 && balance2 > BigInt(0) && uri2) {
-        const metadata = await fetchMetadata(uri2 as string);
-        vouchers.push({
-          id: 2,
-          balance: balance2,
-          uri: uri2 as string,
-          metadata
-        });
-      }
-
-      // Voucher 3
-      if (balance3 && balance3 > BigInt(0) && uri3) {
-        const metadata = await fetchMetadata(uri3 as string);
-        vouchers.push({
-          id: 3,
-          balance: balance3,
-          uri: uri3 as string,
-          metadata
-        });
-      }
-
-      setOwnedVouchers(vouchers);
-    };
-
-    if (address) {
-      loadOwnedVouchers();
-    }
-  }, [address, balance1, uri1, balance2, uri2, balance3, uri3]);
 
   const fetchMetadata = async (uri: string) => {
     try {
@@ -145,6 +61,64 @@ export default function MyVouchers() {
       return null;
     }
   };
+
+  const loadOwnedVouchers = async () => {
+    if (!address) return;
+
+    try {
+      setLoading(true);
+      
+      // Get max voucher ID
+      const maxResponse = await fetch('/api/getMaxVoucherId');
+      const { maxVoucherId } = await maxResponse.json();
+
+      console.log('Max Voucher ID:', maxVoucherId);
+
+      const vouchers: OwnedVoucher[] = [];
+
+      // Loop through all voucher IDs
+      for (let tokenId = 1; tokenId <= maxVoucherId; tokenId++) {
+        try {
+          // Get user's balance for this voucher
+          const balanceResponse = await fetch(`/api/getUserBalance?address=${address}&tokenId=${tokenId}`);
+          
+          if (!balanceResponse.ok) continue;
+
+          const { balance, uri } = await balanceResponse.json();
+
+          // Only include vouchers user owns
+          if (BigInt(balance) > BigInt(0)) {
+            const metadata = await fetchMetadata(uri);
+
+            vouchers.push({
+              id: tokenId,
+              balance: BigInt(balance),
+              uri,
+              metadata
+            });
+          }
+        } catch (error) {
+          console.error(`Error loading voucher ${tokenId}:`, error);
+        }
+      }
+
+      console.log('Owned vouchers:', vouchers);
+      setOwnedVouchers(vouchers);
+    } catch (error) {
+      console.error('Error loading owned vouchers:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load owned vouchers on mount and when address changes
+  useEffect(() => {
+    if (address) {
+      loadOwnedVouchers();
+    } else {
+      setOwnedVouchers([]);
+    }
+  }, [address]);
 
   const handleRedeem = (tokenId: number) => {
     const amount = BigInt(redeemAmount);
@@ -185,8 +159,8 @@ export default function MyVouchers() {
           </p>
         </div>
 
-        {/* Vouchers Grid */}
-        {!address ? (
+        {/* Loading State */}
+        {loading ? (
           <div style={{ 
             textAlign: 'center', 
             padding: '4rem',
@@ -194,6 +168,45 @@ export default function MyVouchers() {
             borderRadius: '16px',
             border: '1px solid rgba(255, 255, 255, 0.08)'
           }}>
+            <div style={{
+              width: '60px',
+              height: '60px',
+              border: '4px solid rgba(255, 107, 53, 0.2)',
+              borderTop: '4px solid #ff6b35',
+              borderRadius: '50%',
+              margin: '0 auto 1.5rem',
+              animation: 'spin 1s linear infinite'
+            }} />
+            <h3 style={{ color: '#ffffff', marginBottom: '0.5rem', fontSize: '1.5rem' }}>Loading Your Vouchers...</h3>
+            <p style={{ color: '#b0b0b0' }}>Fetching your vouchers from the blockchain</p>
+            <style jsx>{`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}</style>
+          </div>
+        ) : !address ? (
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '4rem',
+            background: 'linear-gradient(to bottom, #1f1f1f 0%, #171717 100%)',
+            borderRadius: '16px',
+            border: '1px solid rgba(255, 255, 255, 0.08)'
+          }}>
+            <div style={{
+              width: '80px',
+              height: '80px',
+              background: 'rgba(255, 107, 53, 0.1)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1.5rem',
+              fontSize: '2.5rem'
+            }}>
+              🔌
+            </div>
             <h3 style={{ color: '#ffffff', marginBottom: '1rem', fontSize: '1.5rem' }}>Connect Your Wallet</h3>
             <p style={{ color: '#b0b0b0' }}>Please connect your wallet to view your vouchers.</p>
           </div>
@@ -205,8 +218,38 @@ export default function MyVouchers() {
             borderRadius: '16px',
             border: '1px solid rgba(255, 255, 255, 0.08)'
           }}>
+            <div style={{
+              width: '80px',
+              height: '80px',
+              background: 'rgba(255, 107, 53, 0.1)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1.5rem',
+              fontSize: '2.5rem'
+            }}>
+              🎫
+            </div>
             <h3 style={{ color: '#ffffff', marginBottom: '1rem', fontSize: '1.5rem' }}>No Vouchers Yet</h3>
-            <p style={{ color: '#b0b0b0' }}>You haven't purchased any vouchers. Visit the Marketplace to get started!</p>
+            <p style={{ color: '#b0b0b0', marginBottom: '1.5rem' }}>You haven't purchased any vouchers. Visit the Marketplace to get started!</p>
+            <a
+              href="/marketplace"
+              style={{
+                display: 'inline-block',
+                padding: '1rem 2rem',
+                background: 'linear-gradient(135deg, #ff6b35 0%, #f77f00 100%)',
+                color: 'white',
+                textDecoration: 'none',
+                borderRadius: '12px',
+                fontSize: '0.95rem',
+                fontWeight: '700',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px'
+              }}
+            >
+              Browse Marketplace
+            </a>
           </div>
         ) : (
           <div style={{
