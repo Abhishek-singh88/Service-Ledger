@@ -12,7 +12,7 @@ interface Business {
 }
 
 export default function BusinessDashboard() {
-  const { address } = useAccount();
+  const { address, isConnected } = useAccount();
   const [formData, setFormData] = useState({
     businessName: '',
     title: '',
@@ -94,10 +94,10 @@ export default function BusinessDashboard() {
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(to bottom, #0f0f0f 0%, #1a1a1a 100%)' }}>
       <Navbar />
-      
+
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '3rem 2rem' }}>
         {/* Hero */}
-        <div style={{ 
+        <div style={{
           background: 'linear-gradient(135deg, #2A3132 0%, #1a1a1a 100%)',
           borderRadius: '16px',
           padding: '3rem 2.5rem',
@@ -105,9 +105,9 @@ export default function BusinessDashboard() {
           border: '1px solid rgba(255, 255, 255, 0.1)',
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
         }}>
-          <h1 style={{ 
-            fontSize: '2.75rem', 
-            fontWeight: '800', 
+          <h1 style={{
+            fontSize: '2.75rem',
+            fontWeight: '800',
             background: 'linear-gradient(135deg, #ff6b35 0%, #f77f00 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
@@ -124,11 +124,11 @@ export default function BusinessDashboard() {
         {/* Status Banner */}
         {(isPending || isConfirming || isConfirmed) && (
           <div style={{
-            background: isPending 
+            background: isPending
               ? 'linear-gradient(135deg, rgba(255, 193, 7, 0.15) 0%, rgba(255, 152, 0, 0.15) 100%)'
-              : isConfirming 
-              ? 'linear-gradient(135deg, rgba(33, 150, 243, 0.15) 0%, rgba(21, 101, 192, 0.15) 100%)'
-              : 'linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, rgba(56, 142, 60, 0.15) 100%)',
+              : isConfirming
+                ? 'linear-gradient(135deg, rgba(33, 150, 243, 0.15) 0%, rgba(21, 101, 192, 0.15) 100%)'
+                : 'linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, rgba(56, 142, 60, 0.15) 100%)',
             border: `2px solid ${isPending ? '#ffc107' : isConfirming ? '#2196F3' : '#4caf50'}`,
             borderRadius: '12px',
             padding: '1.25rem 1.75rem',
@@ -153,7 +153,24 @@ export default function BusinessDashboard() {
           </div>
         )}
 
-        {!isRegistered ? (
+        {!isConnected ? (
+          /* Connect Wallet Screen */
+          <div style={{
+            background: 'linear-gradient(to bottom, #1f1f1f 0%, #171717 100%)',
+            borderRadius: '16px',
+            padding: '4rem 3rem',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            textAlign: 'center'
+          }}>
+            <h2 style={{ color: '#ffffff', marginBottom: '1rem', fontSize: '1.5rem' }}>
+              Connect Your Wallet
+            </h2>
+            <div style={{ color: '#b0b0b0' }}>
+              Please connect your wallet to Register Business.
+            </div>
+          </div>
+        ) : !isRegistered ? (
           /* Registration Card */
           <div style={{
             background: 'linear-gradient(to bottom, #1f1f1f 0%, #171717 100%)',
@@ -176,9 +193,9 @@ export default function BusinessDashboard() {
             }}>
               🏢
             </div>
-            <h2 style={{ 
-              fontSize: '2rem', 
-              fontWeight: '700', 
+            <h2 style={{
+              fontSize: '2rem',
+              fontWeight: '700',
               color: '#ffffff',
               marginBottom: '1rem',
               letterSpacing: '-0.01em'
@@ -188,12 +205,12 @@ export default function BusinessDashboard() {
             <p style={{ color: '#b0b0b0', marginBottom: '2.5rem', fontSize: '1.05rem', maxWidth: '500px', margin: '0 auto 2.5rem' }}>
               Complete your business registration to start creating and selling vouchers on the blockchain.
             </p>
-            <button 
-              onClick={handleRegister} 
-              style={{ 
+            <button
+              onClick={handleRegister}
+              style={{
                 padding: '1.25rem 3.5rem',
-                background: isPending || isConfirming 
-                  ? 'rgba(255, 255, 255, 0.1)' 
+                background: isPending || isConfirming
+                  ? 'rgba(255, 255, 255, 0.1)'
                   : 'linear-gradient(135deg, #ff6b35 0%, #f77f00 100%)',
                 color: isPending || isConfirming ? '#666' : 'white',
                 border: 'none',
@@ -232,27 +249,27 @@ export default function BusinessDashboard() {
             boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
             border: '1px solid rgba(255, 255, 255, 0.08)'
           }}>
-            <h2 style={{ 
-              fontSize: '1.5rem', 
-              fontWeight: '700', 
+            <h2 style={{
+              fontSize: '1.5rem',
+              fontWeight: '700',
               color: '#ffffff',
               marginBottom: '2rem',
               letterSpacing: '-0.01em'
             }}>
               Create New Voucher
             </h2>
-            
-            <div style={{ 
-              display: 'grid', 
+
+            <div style={{
+              display: 'grid',
               gridTemplateColumns: '1fr 1fr',
               gap: '1.5rem',
               maxWidth: '1000px'
             }}>
               {/* Business Name */}
               <div>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '0.85rem', 
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.85rem',
                   fontWeight: '700',
                   color: '#b0b0b0',
                   marginBottom: '0.75rem',
@@ -261,11 +278,11 @@ export default function BusinessDashboard() {
                 }}>
                   Business Name
                 </label>
-                <input 
-                  placeholder="Enter business name" 
-                  value={formData.businessName} 
-                  onChange={e => setFormData({...formData, businessName: e.target.value})}
-                  style={{ 
+                <input
+                  placeholder="Enter business name"
+                  value={formData.businessName}
+                  onChange={e => setFormData({ ...formData, businessName: e.target.value })}
+                  style={{
                     width: '100%',
                     padding: '1rem',
                     border: '2px solid rgba(255, 255, 255, 0.1)',
@@ -291,9 +308,9 @@ export default function BusinessDashboard() {
 
               {/* Voucher Title */}
               <div>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '0.85rem', 
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.85rem',
                   fontWeight: '700',
                   color: '#b0b0b0',
                   marginBottom: '0.75rem',
@@ -302,11 +319,11 @@ export default function BusinessDashboard() {
                 }}>
                   Voucher Title
                 </label>
-                <input 
-                  placeholder="e.g., Coffee Pass, Gym Membership" 
-                  value={formData.title} 
-                  onChange={e => setFormData({...formData, title: e.target.value})}
-                  style={{ 
+                <input
+                  placeholder="e.g., Coffee Pass, Gym Membership"
+                  value={formData.title}
+                  onChange={e => setFormData({ ...formData, title: e.target.value })}
+                  style={{
                     width: '100%',
                     padding: '1rem',
                     border: '2px solid rgba(255, 255, 255, 0.1)',
@@ -332,9 +349,9 @@ export default function BusinessDashboard() {
 
               {/* Description */}
               <div style={{ gridColumn: '1 / -1' }}>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '0.85rem', 
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.85rem',
                   fontWeight: '700',
                   color: '#b0b0b0',
                   marginBottom: '0.75rem',
@@ -343,11 +360,11 @@ export default function BusinessDashboard() {
                 }}>
                   Description
                 </label>
-                <textarea 
-                  placeholder="Describe what this voucher offers..." 
-                  value={formData.description} 
-                  onChange={e => setFormData({...formData, description: e.target.value})}
-                  style={{ 
+                <textarea
+                  placeholder="Describe what this voucher offers..."
+                  value={formData.description}
+                  onChange={e => setFormData({ ...formData, description: e.target.value })}
+                  style={{
                     width: '100%',
                     padding: '1rem',
                     border: '2px solid rgba(255, 255, 255, 0.1)',
@@ -376,9 +393,9 @@ export default function BusinessDashboard() {
 
               {/* Image URL */}
               <div>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '0.85rem', 
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.85rem',
                   fontWeight: '700',
                   color: '#b0b0b0',
                   marginBottom: '0.75rem',
@@ -387,11 +404,11 @@ export default function BusinessDashboard() {
                 }}>
                   Image URL
                 </label>
-                <input 
-                  placeholder="https://example.com/image.jpg" 
-                  value={formData.imageUrl} 
-                  onChange={e => setFormData({...formData, imageUrl: e.target.value})}
-                  style={{ 
+                <input
+                  placeholder="https://example.com/image.jpg"
+                  value={formData.imageUrl}
+                  onChange={e => setFormData({ ...formData, imageUrl: e.target.value })}
+                  style={{
                     width: '100%',
                     padding: '1rem',
                     border: '2px solid rgba(255, 255, 255, 0.1)',
@@ -417,9 +434,9 @@ export default function BusinessDashboard() {
 
               {/* City */}
               <div>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '0.85rem', 
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.85rem',
                   fontWeight: '700',
                   color: '#b0b0b0',
                   marginBottom: '0.75rem',
@@ -428,11 +445,11 @@ export default function BusinessDashboard() {
                 }}>
                   City
                 </label>
-                <input 
-                  placeholder="e.g., New York, London" 
-                  value={formData.city} 
-                  onChange={e => setFormData({...formData, city: e.target.value})}
-                  style={{ 
+                <input
+                  placeholder="e.g., New York, London"
+                  value={formData.city}
+                  onChange={e => setFormData({ ...formData, city: e.target.value })}
+                  style={{
                     width: '100%',
                     padding: '1rem',
                     border: '2px solid rgba(255, 255, 255, 0.1)',
@@ -458,9 +475,9 @@ export default function BusinessDashboard() {
 
               {/* Units */}
               <div>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '0.85rem', 
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.85rem',
                   fontWeight: '700',
                   color: '#b0b0b0',
                   marginBottom: '0.75rem',
@@ -469,12 +486,12 @@ export default function BusinessDashboard() {
                 }}>
                   Total Units Available
                 </label>
-                <input 
+                <input
                   placeholder="Number of vouchers"
                   type="number"
-                  value={formData.units} 
-                  onChange={e => setFormData({...formData, units: e.target.value})}
-                  style={{ 
+                  value={formData.units}
+                  onChange={e => setFormData({ ...formData, units: e.target.value })}
+                  style={{
                     width: '100%',
                     padding: '1rem',
                     border: '2px solid rgba(255, 255, 255, 0.1)',
@@ -500,9 +517,9 @@ export default function BusinessDashboard() {
 
               {/* Price */}
               <div>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '0.85rem', 
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.85rem',
                   fontWeight: '700',
                   color: '#b0b0b0',
                   marginBottom: '0.75rem',
@@ -511,12 +528,12 @@ export default function BusinessDashboard() {
                 }}>
                   Price (in SLR tokens)
                 </label>
-                <input 
+                <input
                   placeholder="Price per voucher"
                   type="number"
-                  value={formData.price} 
-                  onChange={e => setFormData({...formData, price: e.target.value})}
-                  style={{ 
+                  value={formData.price}
+                  onChange={e => setFormData({ ...formData, price: e.target.value })}
+                  style={{
                     width: '100%',
                     padding: '1rem',
                     border: '2px solid rgba(255, 255, 255, 0.1)',
@@ -542,9 +559,9 @@ export default function BusinessDashboard() {
 
               {/* Expiry */}
               <div style={{ gridColumn: '1 / -1' }}>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '0.85rem', 
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.85rem',
                   fontWeight: '700',
                   color: '#b0b0b0',
                   marginBottom: '0.75rem',
@@ -553,12 +570,12 @@ export default function BusinessDashboard() {
                 }}>
                   Expiry Date (Unix timestamp, 0 for no expiry)
                 </label>
-                <input 
+                <input
                   placeholder="0"
                   type="number"
-                  value={formData.expiry} 
-                  onChange={e => setFormData({...formData, expiry: e.target.value})}
-                  style={{ 
+                  value={formData.expiry}
+                  onChange={e => setFormData({ ...formData, expiry: e.target.value })}
+                  style={{
                     width: '100%',
                     padding: '1rem',
                     border: '2px solid rgba(255, 255, 255, 0.1)',
@@ -584,13 +601,13 @@ export default function BusinessDashboard() {
             </div>
 
             {/* Create Button */}
-            <button 
-              onClick={handleCreateVoucher} 
-              style={{ 
+            <button
+              onClick={handleCreateVoucher}
+              style={{
                 marginTop: '2.5rem',
                 padding: '1.25rem 3.5rem',
-                background: isPending || isConfirming 
-                  ? 'rgba(255, 255, 255, 0.1)' 
+                background: isPending || isConfirming
+                  ? 'rgba(255, 255, 255, 0.1)'
                   : 'linear-gradient(135deg, #ff6b35 0%, #f77f00 100%)',
                 color: isPending || isConfirming ? '#666' : 'white',
                 border: 'none',
