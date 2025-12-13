@@ -22,6 +22,7 @@ export default function Marketplace() {
   const [selectedVoucher, setSelectedVoucher] = useState<number | null>(null);
   const [purchaseAmount, setPurchaseAmount] = useState('1');
   const [needsApproval, setNeedsApproval] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const { writeContract: writeContractFn, isPending, data: txHash } = useWriteContract();
 
@@ -41,140 +42,15 @@ export default function Marketplace() {
     args: address ? [address, CONTRACTS.localVouchers.address] : undefined
   }) as { data: bigint | undefined, refetch: any };
 
-  // Voucher reads
-  const { data: voucher1 } = useReadContract({
-    ...CONTRACTS.localVouchers,
-    functionName: 'vouchers',
-    args: [BigInt(1)]
-  });
-
-  const { data: uri1 } = useReadContract({
-    ...CONTRACTS.localVouchers,
-    functionName: 'uri',
-    args: [BigInt(1)]
-  });
-
-  // NEW: Read business balance for voucher 1
-  const { data: businessBalance1, refetch: refetchBalance1 } = useReadContract({
-    ...CONTRACTS.localVouchers,
-    functionName: 'balanceOf',
-    args: voucher1 ? [(voucher1 as [string, bigint, bigint, boolean])[0], BigInt(1)] : undefined
-  }) as { data: bigint | undefined, refetch: any };
-
-  const { data: voucher2 } = useReadContract({
-    ...CONTRACTS.localVouchers,
-    functionName: 'vouchers',
-    args: [BigInt(2)]
-  });
-
-  const { data: uri2 } = useReadContract({
-    ...CONTRACTS.localVouchers,
-    functionName: 'uri',
-    args: [BigInt(2)]
-  });
-
-  // NEW: Read business balance for voucher 2
-  const { data: businessBalance2, refetch: refetchBalance2 } = useReadContract({
-    ...CONTRACTS.localVouchers,
-    functionName: 'balanceOf',
-    args: voucher2 ? [(voucher2 as [string, bigint, bigint, boolean])[0], BigInt(2)] : undefined
-  }) as { data: bigint | undefined, refetch: any };
-
-  const { data: voucher3 } = useReadContract({
-    ...CONTRACTS.localVouchers,
-    functionName: 'vouchers',
-    args: [BigInt(3)]
-  });
-
-  const { data: uri3 } = useReadContract({
-    ...CONTRACTS.localVouchers,
-    functionName: 'uri',
-    args: [BigInt(3)]
-  });
-
-  // NEW: Read business balance for voucher 3
-  const { data: businessBalance3, refetch: refetchBalance3 } = useReadContract({
-    ...CONTRACTS.localVouchers,
-    functionName: 'balanceOf',
-    args: voucher3 ? [(voucher3 as [string, bigint, bigint, boolean])[0], BigInt(3)] : undefined
-  }) as { data: bigint | undefined, refetch: any };
-
-  // UPDATED: Refetch balances after successful transaction
+  // Refetch after successful transaction
   useEffect(() => {
     if (txSuccess) {
       refetchAllowance();
       refetchBalance();
-      refetchBalance1();
-      refetchBalance2();
-      refetchBalance3();
+      // Reload vouchers to update remaining units
+      loadAllVouchers();
     }
   }, [txSuccess]);
-
-  // UPDATED: Use business balance instead of metadata
-  useEffect(() => {
-    const loadVouchers = async () => {
-      const allVouchers: VoucherData[] = [];
-
-      // Voucher 1
-      if (voucher1 && uri1 && businessBalance1 !== undefined) {
-        const v = voucher1 as [string, bigint, bigint, boolean];
-        // Only show if active, valid business, and has remaining units
-        if (v[3] && v[0] !== '0x0000000000000000000000000000000000000000' && businessBalance1 > BigInt(0)) {
-          const metadata = await fetchMetadata(uri1 as string);
-          allVouchers.push({
-            id: 1,
-            business: v[0],
-            price: v[1],
-            expiry: v[2],
-            active: v[3],
-            uri: uri1 as string,
-            metadata,
-            remainingUnits: businessBalance1 // Use on-chain balance
-          });
-        }
-      }
-
-      // Voucher 2
-      if (voucher2 && uri2 && businessBalance2 !== undefined) {
-        const v = voucher2 as [string, bigint, bigint, boolean];
-        if (v[3] && v[0] !== '0x0000000000000000000000000000000000000000' && businessBalance2 > BigInt(0)) {
-          const metadata = await fetchMetadata(uri2 as string);
-          allVouchers.push({
-            id: 2,
-            business: v[0],
-            price: v[1],
-            expiry: v[2],
-            active: v[3],
-            uri: uri2 as string,
-            metadata,
-            remainingUnits: businessBalance2 // Use on-chain balance
-          });
-        }
-      }
-
-      // Voucher 3
-      if (voucher3 && uri3 && businessBalance3 !== undefined) {
-        const v = voucher3 as [string, bigint, bigint, boolean];
-        if (v[3] && v[0] !== '0x0000000000000000000000000000000000000000' && businessBalance3 > BigInt(0)) {
-          const metadata = await fetchMetadata(uri3 as string);
-          allVouchers.push({
-            id: 3,
-            business: v[0],
-            price: v[1],
-            expiry: v[2],
-            active: v[3],
-            uri: uri3 as string,
-            metadata,
-            remainingUnits: businessBalance3 // Use on-chain balance
-          });
-        }
-      }
-
-      setVouchers(allVouchers);
-    };
-
-    loadVouchers();
-  }, [voucher1, uri1, businessBalance1, voucher2, uri2, businessBalance2, voucher3, uri3, businessBalance3]);
 
   const fetchMetadata = async (uri: string) => {
     try {
@@ -207,6 +83,68 @@ export default function Marketplace() {
       return null;
     }
   };
+
+  const loadAllVouchers = async () => {
+    try {
+      setLoading(true);
+      
+      // Get max voucher ID
+      const maxResponse = await fetch('/api/getMaxVoucherId');
+      const { maxVoucherId } = await maxResponse.json();
+
+      console.log('Max Voucher ID:', maxVoucherId);
+
+      const allVouchers: VoucherData[] = [];
+
+      // Loop through all voucher IDs
+      for (let tokenId = 1; tokenId <= maxVoucherId; tokenId++) {
+        try {
+          const response = await fetch(`/api/getVoucher?tokenId=${tokenId}`);
+          
+          if (!response.ok) {
+            console.log(`Voucher ${tokenId} not found, skipping...`);
+            continue;
+          }
+
+          const voucherData = await response.json();
+
+          // Only include active vouchers with remaining units
+          if (
+            voucherData.active && 
+            voucherData.business !== '0x0000000000000000000000000000000000000000' &&
+            BigInt(voucherData.remainingUnits) > BigInt(0)
+          ) {
+            const metadata = await fetchMetadata(voucherData.uri);
+
+            allVouchers.push({
+              id: tokenId,
+              business: voucherData.business,
+              price: BigInt(voucherData.price),
+              expiry: BigInt(voucherData.expiry),
+              active: voucherData.active,
+              uri: voucherData.uri,
+              metadata,
+              remainingUnits: BigInt(voucherData.remainingUnits)
+            });
+          }
+        } catch (error) {
+          console.error(`Error loading voucher ${tokenId}:`, error);
+        }
+      }
+
+      console.log('Loaded vouchers:', allVouchers);
+      setVouchers(allVouchers);
+    } catch (error) {
+      console.error('Error loading vouchers:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load all vouchers on mount
+  useEffect(() => {
+    loadAllVouchers();
+  }, []);
 
   const handleBuyVoucher = async (tokenId: number, price: bigint) => {
     const amount = BigInt(purchaseAmount);
@@ -262,7 +200,7 @@ export default function Marketplace() {
           border: '1px solid rgba(255, 255, 255, 0.1)',
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '2rem' }}>
             <div>
               <h1 style={{ 
                 fontSize: '2.75rem', 
@@ -300,7 +238,8 @@ export default function Marketplace() {
           </div>
         </div>
 
-        {vouchers.length === 0 ? (
+        {/* Loading State */}
+        {loading ? (
           <div style={{ 
             textAlign: 'center', 
             padding: '4rem',
@@ -308,8 +247,64 @@ export default function Marketplace() {
             borderRadius: '16px',
             border: '1px solid rgba(255, 255, 255, 0.08)'
           }}>
+            <div style={{
+              width: '60px',
+              height: '60px',
+              border: '4px solid rgba(255, 107, 53, 0.2)',
+              borderTop: '4px solid #ff6b35',
+              borderRadius: '50%',
+              margin: '0 auto 1.5rem',
+              animation: 'spin 1s linear infinite'
+            }} />
+            <h3 style={{ color: '#ffffff', marginBottom: '0.5rem', fontSize: '1.5rem' }}>Loading Vouchers...</h3>
+            <p style={{ color: '#b0b0b0' }}>Fetching available vouchers from the blockchain</p>
+            <style jsx>{`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}</style>
+          </div>
+        ) : vouchers.length === 0 ? (
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '4rem',
+            background: 'linear-gradient(to bottom, #1f1f1f 0%, #171717 100%)',
+            borderRadius: '16px',
+            border: '1px solid rgba(255, 255, 255, 0.08)'
+          }}>
+            <div style={{
+              width: '80px',
+              height: '80px',
+              background: 'rgba(255, 107, 53, 0.1)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1.5rem',
+              fontSize: '2.5rem'
+            }}>
+              🎫
+            </div>
             <h3 style={{ color: '#ffffff', marginBottom: '1rem', fontSize: '1.5rem' }}>No Active Vouchers</h3>
-            <p style={{ color: '#b0b0b0' }}>Check back later for new vouchers from local businesses.</p>
+            <p style={{ color: '#b0b0b0', marginBottom: '1.5rem' }}>Check back later for new vouchers from local businesses.</p>
+            <button
+              onClick={loadAllVouchers}
+              style={{
+                padding: '1rem 2rem',
+                background: 'linear-gradient(135deg, #ff6b35 0%, #f77f00 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '0.95rem',
+                fontWeight: '700',
+                cursor: 'pointer',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px'
+              }}
+            >
+              Refresh
+            </button>
           </div>
         ) : (
           <div style={{
