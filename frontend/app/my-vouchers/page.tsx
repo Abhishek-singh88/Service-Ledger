@@ -9,6 +9,7 @@ interface OwnedVoucher {
   balance: bigint;
   uri: string;
   metadata: any;
+  expiry: bigint;
 }
 
 export default function MyVouchers() {
@@ -19,7 +20,7 @@ export default function MyVouchers() {
   const [loading, setLoading] = useState(false);
 
   const { writeContract: writeContractFn, isPending, data: txHash } = useWriteContract();
-  
+
   const { isSuccess: txSuccess } = useWaitForTransactionReceipt({
     hash: txHash,
   });
@@ -38,18 +39,18 @@ export default function MyVouchers() {
       const ipfsUrl = uri.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
       const response = await fetch(ipfsUrl);
       const data = await response.json();
-      
+
       let businessName = '';
       let city = '';
-      
+
       if (data.attributes && Array.isArray(data.attributes)) {
         const businessAttr = data.attributes.find((attr: any) => attr.trait_type === 'Business');
         const cityAttr = data.attributes.find((attr: any) => attr.trait_type === 'City');
-        
+
         if (businessAttr) businessName = businessAttr.value;
         if (cityAttr) city = cityAttr.value;
       }
-      
+
       return {
         ...data,
         businessName,
@@ -67,7 +68,7 @@ export default function MyVouchers() {
 
     try {
       setLoading(true);
-      
+
       // Get max voucher ID
       const maxResponse = await fetch('/api/getMaxVoucherId');
       const { maxVoucherId } = await maxResponse.json();
@@ -81,10 +82,10 @@ export default function MyVouchers() {
         try {
           // Get user's balance for this voucher
           const balanceResponse = await fetch(`/api/getUserBalance?address=${address}&tokenId=${tokenId}`);
-          
+
           if (!balanceResponse.ok) continue;
 
-          const { balance, uri } = await balanceResponse.json();
+          const { balance, uri, expiry } = await balanceResponse.json();
 
           // Only include vouchers user owns
           if (BigInt(balance) > BigInt(0)) {
@@ -93,6 +94,7 @@ export default function MyVouchers() {
             vouchers.push({
               id: tokenId,
               balance: BigInt(balance),
+              expiry: BigInt(expiry),
               uri,
               metadata
             });
@@ -132,10 +134,10 @@ export default function MyVouchers() {
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(to bottom, #0f0f0f 0%, #1a1a1a 100%)' }}>
       <Navbar />
-      
+
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '3rem 2rem' }}>
         {/* Hero */}
-        <div style={{ 
+        <div style={{
           background: 'linear-gradient(135deg, #2A3132 0%, #1a1a1a 100%)',
           borderRadius: '16px',
           padding: '3rem 2.5rem',
@@ -143,9 +145,9 @@ export default function MyVouchers() {
           border: '1px solid rgba(255, 255, 255, 0.1)',
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
         }}>
-          <h1 style={{ 
-            fontSize: '2.75rem', 
-            fontWeight: '800', 
+          <h1 style={{
+            fontSize: '2.75rem',
+            fontWeight: '800',
             background: 'linear-gradient(135deg, #ff6b35 0%, #f77f00 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
@@ -161,8 +163,8 @@ export default function MyVouchers() {
 
         {/* Loading State */}
         {loading ? (
-          <div style={{ 
-            textAlign: 'center', 
+          <div style={{
+            textAlign: 'center',
             padding: '4rem',
             background: 'linear-gradient(to bottom, #1f1f1f 0%, #171717 100%)',
             borderRadius: '16px',
@@ -187,8 +189,8 @@ export default function MyVouchers() {
             `}</style>
           </div>
         ) : !address ? (
-          <div style={{ 
-            textAlign: 'center', 
+          <div style={{
+            textAlign: 'center',
             padding: '4rem',
             background: 'linear-gradient(to bottom, #1f1f1f 0%, #171717 100%)',
             borderRadius: '16px',
@@ -211,8 +213,8 @@ export default function MyVouchers() {
             <p style={{ color: '#b0b0b0' }}>Please connect your wallet to view your vouchers.</p>
           </div>
         ) : ownedVouchers.length === 0 ? (
-          <div style={{ 
-            textAlign: 'center', 
+          <div style={{
+            textAlign: 'center',
             padding: '4rem',
             background: 'linear-gradient(to bottom, #1f1f1f 0%, #171717 100%)',
             borderRadius: '16px',
@@ -264,8 +266,8 @@ export default function MyVouchers() {
                   background: 'linear-gradient(to bottom, #1f1f1f 0%, #171717 100%)',
                   borderRadius: '16px',
                   overflow: 'hidden',
-                  boxShadow: selectedVoucher === voucher.id 
-                    ? '0 12px 32px rgba(255, 107, 53, 0.4)' 
+                  boxShadow: selectedVoucher === voucher.id
+                    ? '0 12px 32px rgba(255, 107, 53, 0.4)'
                     : '0 8px 24px rgba(0, 0, 0, 0.3)',
                   cursor: 'pointer',
                   transition: 'all 0.3s',
@@ -278,8 +280,8 @@ export default function MyVouchers() {
                 <div style={{
                   width: '100%',
                   height: '200px',
-                  background: voucher.metadata?.imageUrl 
-                    ? `url(${voucher.metadata.imageUrl})` 
+                  background: voucher.metadata?.imageUrl
+                    ? `url(${voucher.metadata.imageUrl})`
                     : 'linear-gradient(135deg, #ff6b35 0%, #f77f00 100%)',
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
@@ -370,6 +372,31 @@ export default function MyVouchers() {
                       <span style={{ fontWeight: '600', color: '#ffffff' }}>{voucher.metadata.city}</span>
                     </div>
                   )}
+
+                  {/* Expiry Display */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    marginBottom: '1rem',
+                    color: '#b0b0b0',
+                    fontSize: '0.85rem'
+                  }}>
+                    <span>⏰</span>
+                    <span style={{ fontWeight: '600', color: voucher.expiry === BigInt(0) ? '#4caf50' : '#ffffff' }}>
+                      {voucher.expiry === BigInt(0)
+                        ? 'No expiry'
+                        : voucher.expiry < BigInt(Math.floor(Date.now() / 1000))
+                          ? <span style={{ color: '#ff5252' }}>Expired</span>
+                          : `Expires: ${new Date(Number(voucher.expiry) * 1000).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}`
+                      }
+                    </span>
+                  </div>
+
 
                   <div style={{
                     background: 'rgba(0, 0, 0, 0.3)',

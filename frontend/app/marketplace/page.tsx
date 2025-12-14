@@ -21,10 +21,10 @@ export default function Marketplace() {
   const [vouchers, setVouchers] = useState<VoucherData[]>([]);
   const [selectedVoucher, setSelectedVoucher] = useState<number | null>(null);
   const [purchaseAmount, setPurchaseAmount] = useState('1');
-  const [needsApproval, setNeedsApproval] = useState(false);
+  const [txStep, setTxStep] = useState<'idle' | 'approving' | 'buying'>('idle');
   const [loading, setLoading] = useState(true);
 
-  const { writeContract: writeContractFn, isPending, data: txHash } = useWriteContract();
+  const { writeContract: writeContractFn, isPending, data: txHash, reset } = useWriteContract();
 
   const { isSuccess: txSuccess } = useWaitForTransactionReceipt({
     hash: txHash,
@@ -42,15 +42,37 @@ export default function Marketplace() {
     args: address ? [address, CONTRACTS.localVouchers.address] : undefined
   }) as { data: bigint | undefined, refetch: any };
 
-  // Refetch after successful transaction
+  // Handle transaction success
   useEffect(() => {
     if (txSuccess) {
-      refetchAllowance();
-      refetchBalance();
-      // Reload vouchers to update remaining units
-      loadAllVouchers();
+      if (txStep === 'approving') {
+        // Approval successful, now buy
+        console.log('Approval confirmed, proceeding to buy...');
+        setTxStep('buying');
+
+        const voucher = vouchers.find(v => v.id === selectedVoucher);
+        if (voucher) {
+          setTimeout(() => {
+            writeContractFn({
+              ...CONTRACTS.localVouchers,
+              functionName: 'buyVoucher',
+              args: [BigInt(selectedVoucher!), BigInt(purchaseAmount)]
+            });
+          }, 500); // Small delay to ensure state update
+        }
+      } else if (txStep === 'buying') {
+        // Purchase successful
+        console.log('Purchase confirmed!');
+        setTxStep('idle');
+        refetchAllowance();
+        refetchBalance();
+        loadAllVouchers();
+        setSelectedVoucher(null);
+        setPurchaseAmount('1');
+        reset(); // Reset wagmi state
+      }
     }
-  }, [txSuccess]);
+  }, [txSuccess, txStep]);
 
   const fetchMetadata = async (uri: string) => {
     try {
@@ -87,7 +109,7 @@ export default function Marketplace() {
   const loadAllVouchers = async () => {
     try {
       setLoading(true);
-      
+
       // Get max voucher ID
       const maxResponse = await fetch('/api/getMaxVoucherId');
       const { maxVoucherId } = await maxResponse.json();
@@ -100,7 +122,7 @@ export default function Marketplace() {
       for (let tokenId = 1; tokenId <= maxVoucherId; tokenId++) {
         try {
           const response = await fetch(`/api/getVoucher?tokenId=${tokenId}`);
-          
+
           if (!response.ok) {
             console.log(`Voucher ${tokenId} not found, skipping...`);
             continue;
@@ -110,7 +132,7 @@ export default function Marketplace() {
 
           // Only include active vouchers with remaining units
           if (
-            voucherData.active && 
+            voucherData.active &&
             voucherData.business !== '0x0000000000000000000000000000000000000000' &&
             BigInt(voucherData.remainingUnits) > BigInt(0)
           ) {
@@ -154,14 +176,14 @@ export default function Marketplace() {
     if (!allowance || allowance < totalCost) {
       const maxUint256 = BigInt('115792089237316195423570985008687907853269984665640564039457584007913129639935');
 
-      setNeedsApproval(true);
+      setTxStep('approving');
       writeContractFn({
         ...CONTRACTS.slr,
         functionName: 'approve',
         args: [CONTRACTS.localVouchers.address, maxUint256]
       });
     } else {
-      setNeedsApproval(false);
+      setTxStep('buying');
       writeContractFn({
         ...CONTRACTS.localVouchers,
         functionName: 'buyVoucher',
@@ -170,29 +192,13 @@ export default function Marketplace() {
     }
   };
 
-  useEffect(() => {
-    if (txSuccess && needsApproval && selectedVoucher) {
-      setTimeout(() => {
-        const voucher = vouchers.find(v => v.id === selectedVoucher);
-        if (voucher) {
-          setNeedsApproval(false);
-          writeContractFn({
-            ...CONTRACTS.localVouchers,
-            functionName: 'buyVoucher',
-            args: [BigInt(selectedVoucher), BigInt(purchaseAmount)]
-          });
-        }
-      }, 2000);
-    }
-  }, [txSuccess, needsApproval, selectedVoucher]);
-
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(to bottom, #0f0f0f 0%, #1a1a1a 100%)' }}>
       <Navbar />
 
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '3rem 2rem' }}>
         {/* Hero Section */}
-        <div style={{ 
+        <div style={{
           background: 'linear-gradient(135deg, #2A3132 0%, #1a1a1a 100%)',
           borderRadius: '16px',
           padding: '3rem 2.5rem',
@@ -202,9 +208,9 @@ export default function Marketplace() {
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '2rem' }}>
             <div>
-              <h1 style={{ 
-                fontSize: '2.75rem', 
-                fontWeight: '800', 
+              <h1 style={{
+                fontSize: '2.75rem',
+                fontWeight: '800',
                 background: 'linear-gradient(135deg, #ff6b35 0%, #f77f00 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
@@ -219,7 +225,7 @@ export default function Marketplace() {
             </div>
 
             {address && slrBalance && (
-              <div style={{ 
+              <div style={{
                 background: 'linear-gradient(135deg, #ff6b35 0%, #f77f00 100%)',
                 borderRadius: '16px',
                 padding: '2rem',
@@ -238,10 +244,60 @@ export default function Marketplace() {
           </div>
         </div>
 
+        {/* Transaction Status Banner */}
+        {isPending && (
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(255, 193, 7, 0.15) 0%, rgba(255, 152, 0, 0.15) 100%)',
+            border: '2px solid #ffc107',
+            borderRadius: '12px',
+            padding: '1.25rem 1.75rem',
+            marginBottom: '2rem',
+            fontSize: '0.95rem',
+            color: '#ffffff',
+            fontWeight: '600',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem'
+          }}>
+            <span style={{ fontSize: '1.25rem' }}>⏳</span>
+            <div>
+              <div style={{ marginBottom: '0.25rem' }}>
+                {txStep === 'approving'
+                  ? 'Step 1 of 2: Approving SLR tokens...'
+                  : 'Step 2 of 2: Purchasing voucher...'}
+              </div>
+              <div style={{ fontSize: '0.85rem', opacity: 0.8 }}>
+                {txStep === 'approving'
+                  ? 'Please confirm the approval transaction in your wallet'
+                  : 'Please confirm the purchase transaction in your wallet'}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {txSuccess && txStep === 'buying' && (
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, rgba(56, 142, 60, 0.15) 100%)',
+            border: '2px solid #4caf50',
+            borderRadius: '12px',
+            padding: '1.25rem 1.75rem',
+            marginBottom: '2rem',
+            fontSize: '0.95rem',
+            color: '#ffffff',
+            fontWeight: '600',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem'
+          }}>
+            <span style={{ fontSize: '1.25rem' }}>✅</span>
+            <span>Purchase successful! Your voucher has been minted.</span>
+          </div>
+        )}
+
         {/* Loading State */}
         {loading ? (
-          <div style={{ 
-            textAlign: 'center', 
+          <div style={{
+            textAlign: 'center',
             padding: '4rem',
             background: 'linear-gradient(to bottom, #1f1f1f 0%, #171717 100%)',
             borderRadius: '16px',
@@ -266,8 +322,8 @@ export default function Marketplace() {
             `}</style>
           </div>
         ) : vouchers.length === 0 ? (
-          <div style={{ 
-            textAlign: 'center', 
+          <div style={{
+            textAlign: 'center',
             padding: '4rem',
             background: 'linear-gradient(to bottom, #1f1f1f 0%, #171717 100%)',
             borderRadius: '16px',
@@ -319,8 +375,8 @@ export default function Marketplace() {
                   background: 'linear-gradient(to bottom, #1f1f1f 0%, #171717 100%)',
                   borderRadius: '16px',
                   overflow: 'hidden',
-                  boxShadow: selectedVoucher === voucher.id 
-                    ? '0 12px 32px rgba(255, 107, 53, 0.4)' 
+                  boxShadow: selectedVoucher === voucher.id
+                    ? '0 12px 32px rgba(255, 107, 53, 0.4)'
                     : '0 8px 24px rgba(0, 0, 0, 0.3)',
                   cursor: 'pointer',
                   transition: 'all 0.3s',
@@ -332,8 +388,8 @@ export default function Marketplace() {
                 <div style={{
                   width: '100%',
                   height: '200px',
-                  background: voucher.metadata?.imageUrl 
-                    ? `url(${voucher.metadata.imageUrl})` 
+                  background: voucher.metadata?.imageUrl
+                    ? `url(${voucher.metadata.imageUrl})`
                     : 'linear-gradient(135deg, #ff6b35 0%, #f77f00 100%)',
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
@@ -424,6 +480,31 @@ export default function Marketplace() {
                     </div>
                   )}
 
+                  {/* Expiry Display */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    marginBottom: '1rem',
+                    color: '#b0b0b0',
+                    fontSize: '0.85rem'
+                  }}>
+                    <span>⏰</span>
+                    <span style={{ fontWeight: '600', color: voucher.expiry === BigInt(0) ? '#4caf50' : '#ffffff' }}>
+                      {voucher.expiry === BigInt(0)
+                        ? 'No expiry'
+                        : voucher.expiry < BigInt(Math.floor(Date.now() / 1000))
+                          ? <span style={{ color: '#ff5252' }}>Expired</span>
+                          : `Expires: ${new Date(Number(voucher.expiry) * 1000).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}`
+                      }
+                    </span>
+                  </div>
+
+
                   <div style={{
                     background: 'rgba(0, 0, 0, 0.3)',
                     padding: '1rem',
@@ -513,7 +594,9 @@ export default function Marketplace() {
                           letterSpacing: '0.5px'
                         }}
                       >
-                        {isPending ? (needsApproval ? 'Approving...' : 'Buying...') : 'Buy Now'}
+                        {isPending
+                          ? (txStep === 'approving' ? 'Step 1/2: Approving...' : 'Step 2/2: Buying...')
+                          : 'Buy Now'}
                       </button>
                     </div>
                   )}

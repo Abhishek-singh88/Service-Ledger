@@ -557,47 +557,127 @@ export default function BusinessDashboard() {
                 />
               </div>
 
-              {/* Expiry */}
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label style={{
-                  display: 'block',
-                  fontSize: '0.85rem',
-                  fontWeight: '700',
-                  color: '#b0b0b0',
-                  marginBottom: '0.75rem',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px'
-                }}>
-                  Expiry Date (Unix timestamp, 0 for no expiry)
-                </label>
-                <input
-                  placeholder="0"
-                  type="number"
-                  value={formData.expiry}
-                  onChange={e => setFormData({ ...formData, expiry: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '1rem',
-                    border: '2px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '12px',
-                    fontSize: '1rem',
-                    outline: 'none',
-                    transition: 'all 0.3s',
-                    boxSizing: 'border-box',
-                    background: 'rgba(0, 0, 0, 0.3)',
-                    color: '#ffffff',
-                    fontWeight: '600'
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = '#ff6b35';
-                    e.target.style.background = 'rgba(0, 0, 0, 0.5)';
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                    e.target.style.background = 'rgba(0, 0, 0, 0.3)';
-                  }}
-                />
-              </div>
+{/* Expiry */}
+<div style={{ gridColumn: '1 / -1' }}>
+  <label style={{
+    display: 'block',
+    fontSize: '0.85rem',
+    fontWeight: '700',
+    color: '#b0b0b0',
+    marginBottom: '0.75rem',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
+  }}>
+    Expiry Date
+  </label>
+  
+  {/* Quick Preset Buttons */}
+  <div style={{ 
+    display: 'flex', 
+    gap: '0.75rem', 
+    marginBottom: '1rem',
+    flexWrap: 'wrap'
+  }}>
+    {[
+      { label: 'No Expiry', days: 0 },
+      { label: '7 Days', days: 7 },
+      { label: '30 Days', days: 30 },
+      { label: '90 Days', days: 90 },
+      { label: '1 Year', days: 365 }
+    ].map((preset) => {
+      const presetTimestamp = preset.days === 0 
+        ? '0' 
+        : Math.floor((Date.now() / 1000) + (preset.days * 24 * 60 * 60)).toString();
+      const isActive = formData.expiry === presetTimestamp;
+      
+      return (
+        <button
+          key={preset.label}
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            setFormData({...formData, expiry: presetTimestamp});
+          }}
+          style={{
+            padding: '0.5rem 1rem',
+            background: isActive
+              ? 'linear-gradient(135deg, #ff6b35 0%, #f77f00 100%)'
+              : 'rgba(255, 255, 255, 0.05)',
+            color: 'white',
+            border: isActive ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '8px',
+            fontSize: '0.85rem',
+            fontWeight: '600',
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+          onMouseOver={(e) => {
+            if (!isActive) {
+              e.currentTarget.style.background = 'rgba(255, 107, 53, 0.3)';
+            }
+          }}
+          onMouseOut={(e) => {
+            if (!isActive) {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+            }
+          }}
+        >
+          {preset.label}
+        </button>
+      );
+    })}
+  </div>
+
+  {/* Manual Date Input */}
+  <input 
+    type="datetime-local"
+    onChange={(e) => {
+      const timestamp = e.target.value 
+        ? Math.floor(new Date(e.target.value).getTime() / 1000).toString()
+        : '0';
+      setFormData({...formData, expiry: timestamp});
+    }}
+    style={{ 
+      width: '100%',
+      padding: '1rem',
+      border: '2px solid rgba(255, 255, 255, 0.1)',
+      borderRadius: '12px',
+      fontSize: '1rem',
+      outline: 'none',
+      transition: 'all 0.3s',
+      boxSizing: 'border-box',
+      background: 'rgba(0, 0, 0, 0.3)',
+      color: '#ffffff',
+      fontWeight: '600'
+    }}
+    onFocus={(e) => {
+      e.target.style.borderColor = '#ff6b35';
+      e.target.style.background = 'rgba(0, 0, 0, 0.5)';
+    }}
+    onBlur={(e) => {
+      e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+      e.target.style.background = 'rgba(0, 0, 0, 0.3)';
+    }}
+  />
+  
+  <p style={{ 
+    fontSize: '0.75rem', 
+    color: '#888', 
+    marginTop: '0.75rem',
+    fontStyle: 'italic',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem'
+  }}>
+    {formData.expiry === '0' 
+      ? '✨ No expiry - vouchers never expire' 
+      : `📅 Expires: ${new Date(parseInt(formData.expiry) * 1000).toLocaleString('en-US', {
+          dateStyle: 'medium',
+          timeStyle: 'short'
+        })}`}
+  </p>
+</div>
+
             </div>
 
             {/* Create Button */}
