@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     const remainingUnits = await publicClient.readContract({
       ...CONTRACTS.localVouchers,
       functionName: 'balanceOf',
-      args: [voucher[0], id]
+      args: [voucher[0] as `0x${string}`, id]
     });
 
     return NextResponse.json({
