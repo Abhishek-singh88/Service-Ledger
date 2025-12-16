@@ -34,7 +34,7 @@ It combines an ERC20 payment token with an ERC1155 voucher system, a business da
 
 ## Live Links
 
-- **Landing Page & dApp**: `U_R_L`  
+- **Landing Page & dApp**: `https://service-ledger.vercel.app/`  
 - **SLR Faucet**: `https://faucet-slr.vercel.app/`  
 - **Network**: Arbitrum Sepolia Testnet  
 
@@ -48,7 +48,7 @@ Local businesses often use paper coupons, PDF vouchers, or centralized platforms
 - Do not let customers trade or transfer vouchers.
 
 **Service Ledger** solves this by turning vouchers into ERC1155 tokens:
-- Businesses mint vouchers on-chain and get paid in SLR.
+- Businesses mint vouchers on-chain and get paid in SLR(Service Ledger).
 - Customers buy, hold, transfer, and redeem vouchers directly from their wallet.
 - All operations are transparent and verifiable on the blockchain.
 
@@ -59,13 +59,12 @@ Local businesses often use paper coupons, PDF vouchers, or centralized platforms
 ### For Customers
 
 - **Marketplace Home**  
-  - Browse all active vouchers dynamically (no hardcoded token IDs).
+  - Browse all active vouchers dynamically.
   - See business name, city, description, price, remaining units, and **expiry date**.
 - **SLR Token Integration**  
   - Pay for vouchers in SLR (ERC20).
-  - One-time approval; future purchases use existing allowance.
 - **My Vouchers Page**  
-  - See all vouchers you own (loaded dynamically by scanning token IDs).
+  - See all vouchers you own.
   - View business details, city, image, and **expiry state**:
     - "No expiry"
     - "Expires on …"
@@ -120,25 +119,63 @@ Local businesses often use paper coupons, PDF vouchers, or centralized platforms
 - **Network**: Arbitrum Sepolia
 
 ### Directory Structure (simplified)
-- app/
-- page.tsx # Landing page
-- marketplace/page.tsx # Marketplace (buy vouchers)
-- my-vouchers/page.tsx # View & redeem owned vouchers
-- business/dashboard/page.tsx # Business registration + voucher creation
-- api/
-- uploadVoucherMetadata/route.ts # Upload voucher metadata to IPFS
-- getMaxVoucherId/route.ts # Read nextVoucherId-1 from contract
-- getVoucher/route.ts # Read voucher + uri + remaining units
-- getUserBalance/route.ts # Read user balance + uri + expiry
+```bash
+SERVICE-LEDGER/
+│
+├── contracts/                            # Smart contracts (Hardhat / Solidity)
+│   └── LocalVouchers.sol                # ERC-based voucher contract (mint,transfer,redeem)
+│
+├── frontend/                             # Next.js frontend application
+│   │
+│   ├── app/                              # Next.js App Router (main application logic)
+│   │   │
+│   │   ├── api/                          # Server-side API routes (Next.js route handlers)
+│   │   │   ├── getMaxVoucherId/          # Returns latest voucher ID from blockchain
+│   │   │   │   └── route.ts
+│   │   │   ├── getUserBalance/           # Fetches user voucher/token balance
+│   │   │   │   └── route.ts
+│   │   │   ├── getVoucher/               # Fetches voucher metadata by ID
+│   │   │   │   └── route.ts
+│   │   │   └── uploadVoucherMetadata/    # Uploads voucher metadata to IPFS (Pinata)
+│   │   │       └── route.ts
+│   │   │
+│   │   ├── business/                     # Business-related routes
+│   │   │   └── dashboard/                # Business dashboard(voucher creation & analytics)
+│   │   │       └── page.tsx               # /business/dashboard page
+│   │   │
+│   │   ├── components/                   # Reusable UI components
+│   │   │   ├── FAQ.tsx                   # Frequently Asked Questions section
+│   │   │   └── Navbar.tsx                # Global navigation bar
+│   │   │
+│   │   ├── lib/                          # Shared utilities & blockchain helpers
+│   │   │   ├── abis/                     # Contract ABIs (JSON)
+│   │   │   │   └── LocalVouchers.json
+│   │   │   └── contracts.ts              # Contract address, ethers/viem setup
+│   │   │
+│   │   ├── marketplace/                  # Public voucher marketplace
+│   │   │   └── page.tsx                  # /marketplace page (browse & buy vouchers)
+│   │   │
+│   │   ├── my-vouchers/                  # User-owned vouchers
+│   │   │   └── page.tsx                  # /my-vouchers page (owned & redeemable vouchers)
+│   │   │
+│   │   ├── layout.tsx                    # Root layout (Navbar, Footer, providers)
+│   │   ├── page.tsx                      # Home page (/)
+│   │   ├── globals.css                   # Global styles (Tailwind / custom CSS)
+│   │   └── favicon.ico                   # App favicon
+│   │
+│   ├── public/                           # Static assets (images, icons, logos)
+│   │
+│   ├── .env.local                        # Environment variables (RPC, Pinata, keys)
+│   ├── package.json                     # Frontend dependencies & scripts
+│   └── next.config.ts                   # Next.js configuration
+│
+├── scripts
+|    └── deploy.js                       # deployment of smart contracts
+|
+├── hardhat.config.js                     # configuration files
+└── README.md                             # Project documentation
 
-- components/
-- Navbar.tsx # Top navigation bar
-- FAQ.tsx # Landing page FAQ section
-
-- lib/
-- contracts.ts # ABIs, contract addresses, wagmi config helpers
-
----
+```
 
 ## Smart Contracts
 
@@ -173,14 +210,14 @@ Local businesses often use paper coupons, PDF vouchers, or centralized platforms
 
 ### 1. Clone & Install
 
-- git clone https://github.com/YOUR_USERNAME/service-ledger.git
+- git clone https://github.com/abhishek-singh88/service-ledger.git
 - cd service-ledger
 
 - pnpm (preferred)
-pnpm install
+```bash pnpm install ```
 
 - or npm
-- npm install
+```bash npm install ```
 
 
 ### 2. Configure Environment
@@ -376,7 +413,6 @@ Planned / nice-to-have features:
 - Testnet-only (Arbitrum Sepolia); do not use with real funds.
 - UI does not yet handle:
   - Partial failures of RPC providers beyond basic retries.
-  - Very large numbers of voucher IDs (though the dynamic approach is future-proof).
 - Business registration uses a placeholder metadata URI (`ipfs://business-metadata`) – this can be extended with real business profiles.
 
 ---
