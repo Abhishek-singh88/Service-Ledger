@@ -36,11 +36,11 @@ export default function Marketplace() {
     args: address ? [address] : undefined
   }) as { data: bigint | undefined, refetch: any };
 
-  const { data: allowance, refetch: refetchAllowance } = useReadContract({
-    ...CONTRACTS.slr,
-    functionName: 'allowance',
-    args: address ? [address, CONTRACTS.localVouchers.address] : undefined
-  }) as { data: bigint | undefined, refetch: any };
+const { data: allowance, refetch: refetchAllowance } = useReadContract({
+  ...CONTRACTS.slr,
+  functionName: 'allowance',
+  args: address ? [address, CONTRACTS.localVouchers.address] : undefined
+} as any) as { data: bigint | undefined, refetch: any };
 
   // Handle transaction success
   useEffect(() => {
