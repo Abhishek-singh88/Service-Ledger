@@ -11,7 +11,7 @@ const config = getDefaultConfig({
   chains: [arbitrumSepolia],
   transports: {
     [arbitrumSepolia.id]: fallback([
-      http(`https://arbitrum-sepolia.infura.io/v3/${process.env.NEXT_PUBLIC_INFURA_KEY}`), // Primary - Replace with your Infura key
+      http(`https://arb-sepolia.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_KEY}`), // Primary - Replace with your Infura key
       http('https://sepolia-rollup.arbitrum.io/rpc'), // Fallback 1 - Public Arbitrum RPC
       http('https://arbitrum-sepolia.blockpi.network/v1/rpc/public'), // Fallback 2
       http(), // Fallback 3 - Default wagmi RPC
